@@ -89,24 +89,25 @@ def get_prices(name):
 
 
 def get_link_hash(name):
-    print(f"Fetching link for {name}")
     log("Info", f"Fetching link for {name}")
-    r = requests.get("https://items.sodeq.org/itemsearch.php?name=" + name.replace(" ", "+"))
-    soup = BeautifulSoup(r.content, features="html.parser")
-    results = soup.findAll("a", string=str(name))
+    if name.isdigit() == False:
+        r = requests.get("https://items.sodeq.org/itemsearch.php?name=" + name.replace(" ", "+"))
+        soup = BeautifulSoup(r.content, features="html.parser")
+        results = soup.findAll("a", string=str(name))
 
-    if len(results) == 0:
-        itemid = r.url.replace("http://items.sodeq.org/item.php?id=", "")
-    elif len(results) == 1:
-        itemid = results[0]['href'].replace("item.php?id=", "")
-    else:
-        log("Error", f"More than one result for {name}")
-        return None
+        if len(results) == 0:
+            itemid = r.url.replace("http://items.sodeq.org/item.php?id=", "")
+        elif len(results) == 1:
+            itemid = results[0]['href'].replace("item.php?id=", "")
+    elif name.isdigit():
+        itemid = name
 
-    try:
-        int(itemid)
-    except ValueError:
-        return None
+    # Fix searching by itemid to show proper name when inserting to items.db
+
+    # try:
+    #     int(itemid)
+    # except ValueError:
+    #     return None
 
     r = requests.get("https://items.sodeq.org/itemh.php?id=" + itemid)
     oldhash = r.text
