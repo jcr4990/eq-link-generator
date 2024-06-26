@@ -6,6 +6,7 @@ import sqlite3
 import pyperclip
 from tkinter import scrolledtext
 import urllib.parse
+from datetime import datetime
 
 
 conn = sqlite3.connect("items.db")
@@ -49,18 +50,40 @@ def DELETE(name):
     print(f"{name} deleted from database")
 
 
+def format_price(krono_price, raw_price):
+    raw_price = int(raw_price.split(".")[0])
+    krono_price = int(krono_price)
+    kr = raw_price // krono_price
+    pp = raw_price % krono_price
+
+    if kr >= 1:
+        if pp > 100:
+            price = f"{kr}kr {pp}pp"
+        elif pp <= 100:
+            price = f"{kr}kr"
+    else:
+        price = f"{pp}pp"
+
+    return price
+
+
 def get_prices(name):
     r = requests.get("https://api.tlp-auctions.com/KronoPrice?serverName=Teek")
-    krono_price = r.text.split(".")[0]
+    krono_price = int(r.text.split(".")[0])
     search_text = urllib.parse.quote(name)
     r = requests.get("https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText=" + search_text)
     results = r.json()
 
     try:
-        log("Info", f"Recent prices in platinum using current krono value ({krono_price}):")
+        log("Info", f"Price Checking: {name}")
+        log("Info", f"Current Krono Price: {krono_price}")
         for result in results['auctions']:
-            log("Auction", f"{result['price']}pp ({result['auctioneer']})")
-        log("Info", f"Average Price {results['averagePrice']}pp")
+            timestamp = datetime.fromisoformat(result['auctionDate']).strftime('%m/%d %I:%M%p')
+            auctioneer = result['auctioneer']
+            avg_price = format_price(krono_price, results['averagePrice'])
+            price = format_price(krono_price, result['price'])
+            log(f"{timestamp}", f"{auctioneer}: {price}")
+        log("Info", f"Average Price {avg_price}")
     except KeyError:
         log("Error", "Price check failed")
 
@@ -151,7 +174,7 @@ tk.Label(root, text="Price:").grid(row=1, column=2, padx=5, pady=5)
 item_one_price = tk.Entry(root, width=7)
 item_one_price.grid(row=1, column=3, padx=5, pady=5)
 # Item 1 PC
-tk.Button(root, text="Price Check", command=lambda: get_prices(item_one_name.get())).grid(row=1, column=4)
+tk.Button(root, text="Price Check", command=lambda: get_prices(item_one_name.get())).grid(row=1, column=4, padx=10)
 
 # Item 2 Name
 tk.Label(root, text="Item:").grid(row=2, column=0, padx=5, pady=5)
@@ -161,6 +184,8 @@ item_two_name.grid(row=2, column=1, padx=5, pady=5)
 tk.Label(root, text="Price:").grid(row=2, column=2, padx=5, pady=5)
 item_two_price = tk.Entry(root, width=7)
 item_two_price.grid(row=2, column=3, padx=5, pady=5)
+# Item 2 PC
+tk.Button(root, text="Price Check", command=lambda: get_prices(item_two_name.get())).grid(row=2, column=4, padx=10)
 
 # Output
 tk.Label(root, text="Output:").grid(row=3, column=0)
@@ -170,8 +195,8 @@ output.config(state=tk.DISABLED)
 output.config(disabledbackground="#d3d3d3")
 
 # Console/Log
-console = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=50, height=15, cursor='xterm')
-console.grid(row=4, column=0, padx=5, pady=5, columnspan=4)
+console = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=60, height=15, cursor='xterm')
+console.grid(row=4, column=0, padx=5, pady=5, columnspan=5)
 console.insert(tk.END, "Welcome to EQ Link Generator!\n")
 console.config(state=tk.DISABLED)
 console.config(bg="#d3d3d3")
