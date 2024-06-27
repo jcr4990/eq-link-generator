@@ -8,12 +8,61 @@ from tkinter import scrolledtext, filedialog
 import urllib.parse
 from datetime import datetime
 import configparser
+import time
 
 
 conn = sqlite3.connect("items.db")
 config_parser = configparser.ConfigParser(interpolation=None, delimiters=("=", ":"))
 config_parser.optionxform = str
 
+
+def get_inv_prices():
+    log("Info", "Fetching inventory price data. This may take a while")
+    r = requests.get("https://api.tlp-auctions.com/KronoPrice?serverName=Teek")
+    krono_price = int(r.text.split(".")[0])
+
+    with open(inv_dump_file, "r") as f:
+        lines = f.readlines()
+
+    checked_items = []
+    for line in lines:
+        cols = line.split("\t")
+        item_loc = cols[0]
+        item_name = cols[1]
+        if "General" in item_loc and "Empty" not in item_name:
+            if item_name in checked_items:
+                continue
+            checked_items.append(item_name)
+            search_text = urllib.parse.quote(item_name)
+            r = requests.get("https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText=" + search_text)
+            results = r.json()
+            try:
+                avg_price = results['averagePrice']
+                if avg_price:
+                    avg_price = avg_price.split(".")[0]
+                    min_price = min_price_input.get()
+                    if min_price == '':
+                        min_price = 0
+                    if int(avg_price) > int(min_price):
+                        avg_price = format_price(krono_price, avg_price)
+                        log("Info", f"{item_name} - {avg_price}")
+            except KeyError:
+                pass
+            time.sleep(1)
+    log("Info", f"Inventory Price Check Complete")
+
+
+def select_inv_dump():
+    global inv_dump_file
+    inv_dump_file = filedialog.askopenfilename(
+        filetypes=[(".txt Files", "*.txt")],
+        title="Select a file"
+    )
+    if inv_dump_file:
+        # file_name = inv_dump_file.split("/")[-1]
+        file_name = "Tacc_teek-Inventory.txt"
+        log("Info", f"Selected inventory dump file {file_name}")
+        tk.Label(root, text=f"{file_name}").grid(row=12, column=2, pady=5, columnspan=3, sticky="w")
 
 def select_ini():
     global ini_file
@@ -33,9 +82,10 @@ def write_ini(msg):
         config_parser.add_section("Socials")
     pagenum = page.get()
     btnnum = btn.get()
+    linenum = line.get()
     config_parser['Socials'][f'Page{pagenum}Button{btnnum}Name'] = msg.split("\x12")[0].strip()
     config_parser['Socials'][f'Page{pagenum}Button{btnnum}Color'] = "0"
-    config_parser['Socials'][f'Page{pagenum}Button{btnnum}Line1'] = msg
+    config_parser['Socials'][f'Page{pagenum}Button{btnnum}Line{linenum}'] = msg
     with open(ini_file, 'w') as configfile:
         config_parser.write(configfile)
     log("Info", f"Macro saved to page {pagenum} button {btnnum}")
@@ -230,8 +280,10 @@ tk.Button(root, text="Price Check", command=lambda: get_prices(item_two_name.get
 # Submit
 submit = tk.Button(root, text="Submit", command=submit_action)
 submit.grid(row=4, column=0, columnspan=4, pady=5)
-separator = ttk.Separator(root, orient='horizontal')
-separator.grid(row=5, column=0, columnspan=5, sticky='ew', pady=10)
+
+# Separator One
+separator_one = ttk.Separator(root, orient='horizontal')
+separator_one.grid(row=5, column=0, columnspan=5, sticky='ew', pady=10)
 
 # Output
 tk.Label(root, text="Msg:").grid(row=6, column=0)
@@ -252,9 +304,32 @@ btn = tk.Entry(root, width=5)
 btn.grid(row=8, column=1, pady=5, sticky="w")
 btn.insert(0, "1")
 
+# Line Select
+tk.Label(root, text="Line:").grid(row=9, column=0, pady=5)
+line = tk.Entry(root, width=5)
+line.grid(row=9, column=1, pady=5, sticky="w")
+line.insert(0, "1")
+
+# Separator Two
+separator_two = ttk.Separator(root, orient='horizontal')
+separator_two.grid(row=11, column=0, columnspan=5, sticky='ew', pady=10)
+
+# Select Inv Dump
+select_inv_dump_btn = tk.Button(root, text="Open Inventory File", command=select_inv_dump)
+select_inv_dump_btn.grid(row=12, column=0, columnspan=2, pady=5, padx=10, sticky="w")
+
+# Min Price Select
+tk.Label(root, text="Min Plat Price:").grid(row=13, column=0, pady=5)
+min_price_input = tk.Entry(root, width=10)
+min_price_input.grid(row=13, column=1, pady=5, sticky="w")
+
+# Get Inv Prices
+inv_prices_btn = tk.Button(root, text="Get Prices", command=get_inv_prices)
+inv_prices_btn.grid(row=14, column=0, columnspan=2, pady=5, padx=10, sticky="w")
+
 # Console/Log
 console = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=60, height=15, cursor='xterm')
-console.grid(row=9, column=0, padx=5, pady=5, columnspan=5)
+console.grid(row=20, column=0, padx=5, pady=5, columnspan=5)
 console.insert(tk.END, "Welcome to EQ Link Generator!\n")
 console.config(state=tk.DISABLED)
 console.config(bg="#d3d3d3")
