@@ -31,11 +31,14 @@ def write_ini(msg):
     config_parser.read(ini_file)
     if "Socials" not in config_parser.sections():
         config_parser.add_section("Socials")
-    config_parser['Socials'][f'Page{page.get()}Button{btn.get()}Name'] = msg.split("\x12")[0].strip()
-    config_parser['Socials'][f'Page{page.get()}Button{btn.get()}Color'] = "0"
-    config_parser['Socials'][f'Page{page.get()}Button{btn.get()}Line1'] = msg
+    pagenum = page.get()
+    btnnum = btn.get()
+    config_parser['Socials'][f'Page{pagenum}Button{btnnum}Name'] = msg.split("\x12")[0].strip()
+    config_parser['Socials'][f'Page{pagenum}Button{btnnum}Color'] = "0"
+    config_parser['Socials'][f'Page{pagenum}Button{btnnum}Line1'] = msg
     with open(ini_file, 'w') as configfile:
         config_parser.write(configfile)
+    log("Info", f"Macro saved to page {pagenum} button {btnnum}")
 
 
 def copy(msg):
