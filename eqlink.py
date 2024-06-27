@@ -17,7 +17,9 @@ config_parser.optionxform = str
 
 
 def get_inv_prices():
-    log("Info", "Fetching inventory price data. This may take a while")
+    log("Info", "Fetching inventory price data (May take a while)")
+    progress_bar = ttk.Progressbar(root, orient='horizontal', length=300, mode='determinate')
+    progress_bar.grid(row=21, column=0, padx=5, pady=5, columnspan=5)
     r = requests.get("https://api.tlp-auctions.com/KronoPrice?serverName=Teek")
     krono_price = int(r.text.split(".")[0])
 
@@ -25,7 +27,10 @@ def get_inv_prices():
         lines = f.readlines()
 
     checked_items = []
-    for line in lines:
+    for i, line in enumerate(lines):
+        progress_bar['maximum'] = len(lines)
+        progress_bar['value'] = i
+        progress_bar.update()
         cols = line.split("\t")
         item_loc = cols[0]
         item_name = cols[1]
