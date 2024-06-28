@@ -54,7 +54,7 @@ def get_inv_prices():
             except KeyError:
                 pass
             time.sleep(1)
-    log("Info", f"Inventory Price Check Complete")
+    log("Info", "Inventory Price Check Complete")
 
 
 def select_inv_dump():
@@ -68,6 +68,7 @@ def select_inv_dump():
         file_name = "Tacc_teek-Inventory.txt"
         log("Info", f"Selected inventory dump file {file_name}")
         tk.Label(root, text=f"{file_name}").grid(row=12, column=2, pady=5, columnspan=3, sticky="w")
+
 
 def select_ini():
     global ini_file
@@ -93,6 +94,12 @@ def write_ini(msg):
     config_parser['Socials'][f'Page{pagenum}Button{btnnum}Line{linenum}'] = msg
     with open(ini_file, 'w') as configfile:
         config_parser.write(configfile)
+    with open(ini_file, "r") as f:
+        file = f.read()
+        file = file.replace("\n\n", "\n")
+        file = file.replace(" = ", "=")
+    with open(ini_file, "w") as f:
+        f.write(file)
     log("Info", f"Macro saved to page {pagenum} button {btnnum}")
 
 
