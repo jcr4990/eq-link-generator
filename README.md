@@ -1,6 +1,5 @@
 # eq-link-generator
-![Before and After](https://i.imgur.com/2GuGbPC.gif)
-![Before and After](https://i.imgur.com/kK9SvAQ.gif)
+![Before and After](https://i.imgur.com/2GuGbPC.gif) ![Before and After](https://i.imgur.com/kK9SvAQ.gif)
 ## About / Usage
 EQ Link Generator is a tool that allows you to inject clickable item links into your in-game macros whether you possess the item or not. You can set a prefix (WTB/WTS or other) and up to 2 items per line of a macro along with pricing, then hit submit and it will generate the necessary hex string that needs to be in your Charname_server_CLASS.ini file in your EQ directory. This file holds all your in-game macro information. You may either hit the "Copy to Clipboard" and paste it in yourself, or hit "Write to ini" and select your chosen ini file as well as which page and button number you want to use and it will paste it in for you.
 
