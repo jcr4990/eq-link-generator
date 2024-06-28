@@ -21,5 +21,8 @@ Navigate to "Releases" on the right sidebar (https://github.com/jcr4990/eq-link-
 > [!WARNING]
 > Windows Defender and other antivirus software will likely label this as a virus so you will have to allow it. It's a false positive due to the use of pyinstaller to convert this python script to an exe. If this makes you uncomfortable you can use the .py installation instructions above and run it as a regular python script with no virus warnings.
 
+## External Resources
+Pricing data provided by https://araduneauctions.net/ 
+Item link hashes provided by https://items.sodeq.org/
 
-
+Thanks to these developers for making this project possible!
