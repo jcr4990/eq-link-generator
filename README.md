@@ -23,6 +23,7 @@ Navigate to "Releases" on the right sidebar (https://github.com/jcr4990/eq-link-
 
 ## External Resources
 Pricing data provided by https://araduneauctions.net/ 
+
 Item link hashes provided by https://items.sodeq.org/
 
 Thanks to these developers for making this project possible!
