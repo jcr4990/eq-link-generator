@@ -1,8 +1,6 @@
 import requests
-from bs4 import BeautifulSoup
 import tkinter as tk
 from tkinter import ttk
-import sqlite3
 import pyperclip
 from tkinter import scrolledtext, filedialog
 import urllib.parse
@@ -13,24 +11,32 @@ import os
 import gzip
 import shutil
 import pandas as pd
+import threading
 
 
-conn = sqlite3.connect("items.db")
 config_parser = configparser.ConfigParser(interpolation=None, delimiters=("=", ":"))
 config_parser.optionxform = str
 
 
-def extract_csv():
+def start_thread():
+    thread = threading.Thread(target=load_items)
+    thread.start()
+
+
+def extract_gz():
     files = os.listdir()
     if "items.txt" not in files:
         with gzip.open("items.txt.gz", 'rb') as f_in:
-                with open('items.txt', 'wb') as f_out:
-                    shutil.copyfileobj(f_in, f_out)
+            with open('items.txt', 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
 
 
-def read_csv():
-    df = pd.read_csv('items.txt', delimiter='|', on_bad_lines='skip', low_memory=False)
-    return df
+def load_items():
+    global db
+    log("Info", "Loading item data...")
+    extract_gz()
+    db = pd.read_csv('items.txt', delimiter='|', on_bad_lines='skip', low_memory=False)
+    log("Info", "Item data loaded!")
 
 
 def get_inv_prices():
@@ -139,31 +145,6 @@ def log(logtype, msg):
     console.config(state=tk.DISABLED)
 
 
-def INSERT(id, name, hash):
-    fname = name.lower().strip()
-    cur = conn.cursor()
-    cur.execute('INSERT INTO items (id, name, hash) VALUES (?, ?, ?)', (id, fname, hash))
-    conn.commit()
-    print(f"{name} added to database")
-    log("Info", f"{name} added to items.db")
-
-
-def SELECT(name):
-    name = name.lower().strip()
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM items WHERE name=?', (name,))
-    result = cur.fetchall()
-    return result
-
-
-def DELETE(name):
-    name = name.lower().strip()
-    cur = conn.cursor()
-    cur.execute('DELETE FROM items WHERE name=?', (name,))
-    conn.commit()
-    print(f"{name} deleted from database")
-
-
 def format_price(krono_price, raw_price):
     raw_price = int(raw_price.split(".")[0])
     krono_price = int(krono_price)
@@ -205,32 +186,6 @@ def get_prices(name):
         log("Error", "Price check failed")
 
 
-def get_link_hash(name):
-    log("Info", f"Fetching link for {name}")
-    r = requests.get("https://items.sodeq.org/itemsearch.php?name=" + name.replace(" ", "+"))
-    soup = BeautifulSoup(r.content, features="html.parser")
-    results = soup.findAll("a", string=str(name))
-
-    if len(results) == 0:
-        itemid = r.url.replace("http://items.sodeq.org/item.php?id=", "")
-    elif len(results) == 1:
-        itemid = results[0]['href'].replace("item.php?id=", "")
-    else:
-        item_ids = []
-        for result in results:
-            result_id = result['href'].replace("item.php?id=", "")
-            item_ids.append(int(result_id))
-        itemid = str(min(item_ids))
-        log("Info", f"Multiple items found. Using lowest ID:{itemid}")
-
-    r = requests.get("https://items.sodeq.org/itemh.php?id=" + itemid)
-    oldhash = "\x12" + r.text.split("\x12")[-2] + "\x12"
-    zeros = "0" * 35
-    hash = oldhash[:7] + zeros + oldhash[7:]
-    INSERT(int(itemid), name, hash)
-    return hash
-
-
 def submit_action():
     msg = prefix.get()
     items = [
@@ -238,23 +193,15 @@ def submit_action():
         {"name": item_two_name, "price": item_two_price}
         ]
 
-
     for i, item in enumerate(items):
         name = item['name'].get()
         price = item['price'].get()
         if name != "":
             for i, entry in enumerate(db['name']):
                 if entry == name:
-                    hash = db['id'][i]
+                    hash = "\x12" + db['itemlink'][i] + "\x12"
                     break
-            # entry = SELECT(name)
-            # if entry == []:
-            #     hash = get_link_hash(name)
-            #     if hash is None:
-            #         log("Error", "Link could not be generated")
-            #         return None
-            # else:
-            #     hash = entry[0][2]
+
             if hash is not None:
                 msg = msg + f" {hash}"
                 if price != "":
@@ -273,7 +220,7 @@ def submit_action():
     output.config(state=tk.DISABLED)
     tk.Button(root, text="Copy to Clipboard", command=lambda: copy(msg)).grid(row=6, column=2, columnspan=2, pady=5)
     tk.Button(root, text="Write ini", command=lambda: write_ini(msg)).grid(row=7, column=1, rowspan=2, pady=5)
-    log("Info", "Links generated!")
+    log("Info", "Link generated!")
 
 
 # Create the main window
@@ -381,7 +328,6 @@ console.insert(tk.END, "Welcome to EQ Link Generator!\n")
 console.config(state=tk.DISABLED)
 console.config(bg="#d3d3d3")
 
-extract_csv()
-db = read_csv()
 
+root.after(1, start_thread)
 root.mainloop()
