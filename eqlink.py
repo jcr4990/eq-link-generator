@@ -71,8 +71,7 @@ def select_inv_dump():
         title="Select a file"
     )
     if inv_dump_file:
-        # file_name = inv_dump_file.split("/")[-1]
-        file_name = "Tacc_teek-Inventory.txt"
+        file_name = inv_dump_file.split("/")[-1]
         log("Info", f"Selected inventory dump file {file_name}")
         tk.Label(root, text=f"{file_name}").grid(row=12, column=2, pady=5, columnspan=3, sticky="w")
 
