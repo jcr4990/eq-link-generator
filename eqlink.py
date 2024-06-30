@@ -17,6 +17,8 @@ config_parser.optionxform = str
 
 
 def get_inv_prices():
+    if "inv_dump_file" not in globals():
+        select_inv_dump()
     log("Info", "Fetching inventory price data (May take a while)")
     progress_bar = ttk.Progressbar(root, orient='horizontal', length=300, mode='determinate')
     progress_bar.grid(row=21, column=0, padx=5, pady=5, columnspan=5)
@@ -26,34 +28,39 @@ def get_inv_prices():
     with open(inv_dump_file, "r") as f:
         lines = f.readlines()
 
-    checked_items = []
+    items_to_pc = []
     for i, line in enumerate(lines):
-        progress_bar['maximum'] = len(lines)
-        progress_bar['value'] = i
-        progress_bar.update()
         cols = line.split("\t")
         item_loc = cols[0]
         item_name = cols[1]
-        if "General" in item_loc and "Empty" not in item_name:
-            if item_name in checked_items:
-                continue
-            checked_items.append(item_name)
-            search_text = urllib.parse.quote(item_name)
-            r = requests.get("https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText=" + search_text)
-            results = r.json()
-            try:
-                avg_price = results['averagePrice']
-                if avg_price:
-                    avg_price = avg_price.split(".")[0]
-                    min_price = min_price_input.get()
-                    if min_price == '':
-                        min_price = 0
-                    if int(avg_price) > int(min_price):
-                        avg_price = format_price(krono_price, avg_price)
-                        log("Info", f"{item_name} - {avg_price}")
-            except KeyError:
-                pass
-            time.sleep(1)
+        bag_num = bag_num_input.get()
+        if bag_num.lower() == "all":
+            bag_num = ""
+        if "General " + bag_num in item_loc and "Empty" not in item_name:
+            if item_name not in items_to_pc:
+                items_to_pc.append(item_name)
+
+    for i, item in enumerate(items_to_pc):
+        progress_bar['maximum'] = len(items_to_pc)
+        progress_bar['value'] = i
+        progress_bar.update()
+        search_text = urllib.parse.quote(item)
+        r = requests.get("https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText=" + search_text)
+        results = r.json()
+        try:
+            avg_price = results['averagePrice']
+            if avg_price:
+                avg_price = avg_price.split(".")[0]
+                min_price = min_price_input.get()
+                if min_price == '':
+                    min_price = 0
+                if int(avg_price) > int(min_price):
+                    avg_price = format_price(krono_price, avg_price)
+                    log("Info", f"{item} - {avg_price}")
+        except KeyError:
+            pass
+        time.sleep(.5)
+    progress_bar['value'] = progress_bar['maximum']
     log("Info", "Inventory Price Check Complete")
 
 
@@ -201,7 +208,7 @@ def get_link_hash(name):
         log("Info", f"Multiple items found. Using lowest ID:{itemid}")
 
     r = requests.get("https://items.sodeq.org/itemh.php?id=" + itemid)
-    oldhash = r.text
+    oldhash = "\x12" + r.text.split("\x12")[-2] + "\x12"
     zeros = "0" * 35
     hash = oldhash[:7] + zeros + oldhash[7:]
     INSERT(int(itemid), name, hash)
@@ -265,7 +272,7 @@ root.config(menu=menubar)
 tk.Label(root, text="Prefix:").grid(row=1, column=0, padx=5, pady=5)
 prefix = tk.Entry(root, width=30)
 prefix.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-prefix.insert(0, "WTS")
+prefix.insert(0, "/1 WTS")
 
 # Item 1 Name
 tk.Label(root, text="Item:").grid(row=2, column=0, padx=5, pady=5)
@@ -334,10 +341,17 @@ select_inv_dump_btn.grid(row=12, column=0, columnspan=2, pady=5, padx=10, sticky
 tk.Label(root, text="Min Plat Price:").grid(row=13, column=0, pady=5)
 min_price_input = tk.Entry(root, width=10)
 min_price_input.grid(row=13, column=1, pady=5, sticky="w")
+min_price_input.insert(0, "100")
+
+# Bag #
+tk.Label(root, text="Bag Num (1-12):").grid(row=14, column=0, pady=5)
+bag_num_input = tk.Entry(root, width=10)
+bag_num_input.grid(row=14, column=1, pady=5, sticky="w", columnspan=2)
+bag_num_input.insert(0, "All")
 
 # Get Inv Prices
 inv_prices_btn = tk.Button(root, text="Get Prices", command=get_inv_prices)
-inv_prices_btn.grid(row=14, column=0, columnspan=2, pady=5, padx=10, sticky="w")
+inv_prices_btn.grid(row=15, column=0, columnspan=2, pady=5, padx=10, sticky="w")
 
 # Console/Log
 console = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=60, height=15, cursor='xterm')
