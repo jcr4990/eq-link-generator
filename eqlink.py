@@ -9,11 +9,28 @@ import urllib.parse
 from datetime import datetime
 import configparser
 import time
+import os
+import gzip
+import shutil
+import pandas as pd
 
 
 conn = sqlite3.connect("items.db")
 config_parser = configparser.ConfigParser(interpolation=None, delimiters=("=", ":"))
 config_parser.optionxform = str
+
+
+def extract_csv():
+    files = os.listdir()
+    if "items.txt" not in files:
+        with gzip.open("items.txt.gz", 'rb') as f_in:
+                with open('items.txt', 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+
+
+def read_csv():
+    df = pd.read_csv('items.txt', delimiter='|', on_bad_lines='skip', low_memory=False)
+    return df
 
 
 def get_inv_prices():
@@ -221,18 +238,23 @@ def submit_action():
         {"name": item_two_name, "price": item_two_price}
         ]
 
+
     for i, item in enumerate(items):
         name = item['name'].get()
         price = item['price'].get()
         if name != "":
-            entry = SELECT(name)
-            if entry == []:
-                hash = get_link_hash(name)
-                if hash is None:
-                    log("Error", "Link could not be generated")
-                    return None
-            else:
-                hash = entry[0][2]
+            for i, entry in enumerate(db['name']):
+                if entry == name:
+                    hash = db['id'][i]
+                    break
+            # entry = SELECT(name)
+            # if entry == []:
+            #     hash = get_link_hash(name)
+            #     if hash is None:
+            #         log("Error", "Link could not be generated")
+            #         return None
+            # else:
+            #     hash = entry[0][2]
             if hash is not None:
                 msg = msg + f" {hash}"
                 if price != "":
@@ -359,5 +381,7 @@ console.insert(tk.END, "Welcome to EQ Link Generator!\n")
 console.config(state=tk.DISABLED)
 console.config(bg="#d3d3d3")
 
+extract_csv()
+db = read_csv()
 
 root.mainloop()
