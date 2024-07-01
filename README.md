@@ -5,6 +5,8 @@ EQ Link Generator is a tool that allows you to inject clickable item links into 
 
 Additionally, you can price check each of the two item fields after typing in the item name to get an idea of where to set your price. You may also set a minimum price threshold and select an inventory dump file (created by typing "/outputfile inventory" in game) then hit 'Get Prices' and it will price check all items in your top level inventory and all bags to check for items worth above your minimum threshold.
 
+Another feature is the ability to do a full inventory price checking. You can do this by taking an inventory dump by typing '/outputfile inventory' in game, then selecting that file in EQ Link Generator, then optionally setting a minimum plat price and a bag number (or leave it on 'All' default for all bags) and hit 'Get Prices' to price check your entire inventory for items of value.
+
 NOTE: You must close the EQ client when using "write ini" or modfying your ini file manually then restart the game for changes to take effect. Always back up your original Charname_server_CLASS.ini file before using this app just in case.
 ## Installation (.py)
 Install Python if not already installed. Clone this repo (or download zip and extract) then open a command prompt and cd into the eq-link-generator folder then type:
