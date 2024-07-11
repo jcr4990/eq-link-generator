@@ -211,7 +211,7 @@ def write_ini(msg):
         file = file.replace(" = ", "=")
     with open(ini_file, "w") as f:
         f.write(file)
-    log("Info", f"Macro saved to page {pagenum} button {btnnum}")
+    log("Info", f"Macro saved to page {pagenum} button {btnnum} line {linenum}")
 
 
 def copy(msg):
