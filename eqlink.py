@@ -4,7 +4,7 @@ from tkinter import ttk
 import pyperclip
 from tkinter import scrolledtext, filedialog
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import datetime
 import configparser
 import time
 import os
@@ -12,22 +12,22 @@ import gzip
 import shutil
 import pandas as pd
 import threading
-# from gtts import gTTS
 import pyttsx3
-from playsound import playsound
 
-
+# Initialize config parser
 config_parser = configparser.ConfigParser(interpolation=None, delimiters=("=", ":"))
 config_parser.optionxform = str
 
 
 def start_thread():
+    """Start a thread to load items."""
     thread = threading.Thread(target=load_items)
     thread.daemon = True
     thread.start()
 
 
 def extract_gz():
+    """Extract items.txt from items.txt.gz if it doesn't exist."""
     files = os.listdir()
     if "items.txt" not in files:
         with gzip.open("items.txt.gz", 'rb') as f_in:
@@ -36,6 +36,7 @@ def extract_gz():
 
 
 def load_items():
+    """Load item data from items.txt."""
     global db
     log("Info", "Loading item data...")
     extract_gz()
@@ -44,6 +45,7 @@ def load_items():
 
 
 def start_track_items():
+    """Start a thread to track items."""
     track_thread = threading.Thread(target=track_items)
     track_thread.daemon = True
     track_thread.start()
@@ -52,19 +54,19 @@ def start_track_items():
 
 
 def track_items():
-    items = items_to_track.get("1.0", tk.END)
-    itemlist = items.split("\n")
+    """Track items and notify when they are being sold."""
+    items = items_to_track.get("1.0", tk.END).split("\n")
     track_timestamp = datetime.now()
     processed = []
     while True:
         print("Tracking...")
-        for item in itemlist:
-            if item == '':
+        for item in items:
+            if not item:
                 continue
             search_text = urllib.parse.quote(item)
             url = f'https://api.tlp-auctions.com/SalesLog?serverName=Teek&exact=true&searchTerm={search_text}'
             r = requests.get(url)
-            results = r.json()['items']
+            results = r.json().get('items', [])
             for result in results:
                 result_id = result['id']
                 auction_time = result['datetime']
@@ -79,19 +81,17 @@ def track_items():
 
 
 def tts(msg):
+    """Text-to-speech function."""
     engine = pyttsx3.init()
-    voices = engine.getProperty('voices')
-    engine.setProperty('voice', voices[0].id)
-    engine.setProperty('rate', 170) 
+    engine.setProperty('voice', engine.getProperty('voices')[0].id)
+    engine.setProperty('rate', 170)
     engine.setProperty('volume', 1)
     engine.say(msg)
     engine.runAndWait()
-    # tts = gTTS(text=msg, lang='en', slow=False)
-    # tts.save("tts.mp3")
-    # playsound("tts.mp3")
 
 
 def get_inv_prices():
+    """Fetch inventory price data."""
     if "inv_dump_file" not in globals():
         select_inv_dump()
     log("Info", "Fetching inventory price data (May take a while)")
@@ -104,14 +104,14 @@ def get_inv_prices():
         lines = f.readlines()
 
     items_to_pc = []
-    for i, line in enumerate(lines):
+    for line in lines:
         cols = line.split("\t")
         item_loc = cols[0]
         item_name = cols[1]
-        bag_num = bag_num_input.get()
-        if bag_num.lower() == "all":
+        bag_num = bag_num_input.get().lower()
+        if bag_num == "all":
             bag_num = ""
-        if "General " + bag_num in item_loc and "Empty" not in item_name:
+        if f"General {bag_num}" in item_loc and "Empty" not in item_name:
             if item_name not in items_to_pc:
                 items_to_pc.append(item_name)
 
@@ -120,15 +120,13 @@ def get_inv_prices():
         progress_bar['value'] = i
         progress_bar.update()
         search_text = urllib.parse.quote(item)
-        r = requests.get("https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText=" + search_text)
+        r = requests.get(f"https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText={search_text}")
         results = r.json()
         try:
             avg_price = results['averagePrice']
             if avg_price:
                 avg_price = avg_price.split(".")[0]
-                min_price = min_price_input.get()
-                if min_price == '':
-                    min_price = 0
+                min_price = min_price_input.get() or 0
                 if int(avg_price) > int(min_price):
                     avg_price = format_price(krono_price, avg_price)
                     log("Info", f"{item} - {avg_price}")
@@ -140,19 +138,20 @@ def get_inv_prices():
 
 
 def select_inv_dump():
+    """Select inventory dump file."""
     global inv_dump_file
     inv_dump_file = filedialog.askopenfilename(
         filetypes=[(".txt Files", "*.txt")],
         title="Select a file"
     )
     if inv_dump_file:
-        file_name = inv_dump_file.split("/")[-1]
+        file_name = os.path.basename(inv_dump_file)
         log("Info", f"Selected inventory dump file {file_name}")
         select_inv_dump_btn.config(text=file_name)
-        # tk.Label(root, text=f"{file_name}").grid(row=12, column=2, pady=5, columnspan=3, sticky="w")
 
 
 def select_logfile():
+    """Select log file."""
     global log_file
     log_file = filedialog.askopenfilename(
         filetypes=[(".txt Files", "*.txt")],
@@ -166,15 +165,14 @@ def select_logfile():
 
 
 def monitor_log():
+    """Monitor log file for price check commands."""
     with open(log_file, "r") as f:
         f.seek(0, 2)
         while True:
             data = f.readline()
-            if data == '':
+            if not data:
                 continue
-            else:
-                data = data[27:]
-
+            data = data[27:]
             if data.startswith("You") and "'pc" in data:
                 pc_item = data.split("'pc")[-1].strip().rstrip("'")
                 print("PC Item: " + pc_item)
@@ -182,6 +180,7 @@ def monitor_log():
 
 
 def select_ini():
+    """Select ini file."""
     global ini_file
     ini_file = filedialog.askopenfilename(
         filetypes=[(".ini Files", "*.ini")],
@@ -192,6 +191,7 @@ def select_ini():
 
 
 def write_ini(msg):
+    """Write message to ini file."""
     if "ini_file" not in globals():
         select_ini()
     config_parser.read(ini_file)
@@ -206,20 +206,20 @@ def write_ini(msg):
     with open(ini_file, 'w') as configfile:
         config_parser.write(configfile)
     with open(ini_file, "r") as f:
-        file = f.read()
-        file = file.replace("\n\n", "\n")
-        file = file.replace(" = ", "=")
+        file = f.read().replace("\n\n", "\n").replace(" = ", "=")
     with open(ini_file, "w") as f:
         f.write(file)
     log("Info", f"Macro saved to page {pagenum} button {btnnum} line {linenum}")
 
 
 def copy(msg):
+    """Copy message to clipboard."""
     pyperclip.copy(msg)
     log("Info", "Copied to Clipboard!")
 
 
 def log(logtype, msg):
+    """Log messages to the console."""
     console.config(state=tk.NORMAL)
     console.insert(tk.END, f"[{logtype}] {msg}\n")
     console.update_idletasks()
@@ -228,6 +228,7 @@ def log(logtype, msg):
 
 
 def format_price(krono_price, raw_price):
+    """Format price based on krono price."""
     raw_price = int(raw_price.split(".")[0])
     krono_price = int(krono_price)
     kr = raw_price // krono_price
@@ -236,7 +237,7 @@ def format_price(krono_price, raw_price):
     if kr >= 1:
         if pp > 100:
             price = f"{kr}kr {pp}pp"
-        elif pp <= 100:
+        else:
             price = f"{kr}kr"
     else:
         price = f"{pp}pp"
@@ -244,17 +245,35 @@ def format_price(krono_price, raw_price):
     return price
 
 
+def format_tts_price(price):
+    """Format price for TTS."""
+    parts = price.split()
+    formatted_parts = []
+    for part in parts:
+        if part.endswith("pp"):
+            number = int(part[:-2])
+            rounded_number = round(number, -2)
+            formatted_parts.append(f"{rounded_number:,} platinum")
+        elif part.endswith("kr"):
+            number = int(part[:-2])
+            formatted_parts.append(f"{number:,} krono")
+        else:
+            formatted_parts.append(part)
+    return ' '.join(formatted_parts)
+
+
 def get_prices(name, tts_flag=False):
+    """Get prices for a given item."""
     r = requests.get("https://api.tlp-auctions.com/KronoPrice?serverName=Teek")
     krono_price = int(r.text.split(".")[0])
     search_text = urllib.parse.quote(name)
-    r = requests.get("https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText=" + search_text)
+    r = requests.get(f"https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText={search_text}")
     results = r.json()
 
     try:
         log("Info", f"Price Checking: {name}")
         log("Info", f"Current Krono Price: {krono_price}")
-        if results['auctions']:
+        if results.get('auctions'):
             for result in results['auctions']:
                 timestamp = datetime.fromisoformat(result['auctionDate']).strftime('%m/%d %I:%M%p')
                 auctioneer = result['auctioneer']
@@ -262,8 +281,9 @@ def get_prices(name, tts_flag=False):
                 price = format_price(krono_price, result['price'])
                 log(f"{timestamp}", f"{auctioneer}: {price}")
             log("Info", f"Average Price {avg_price}")
-            if tts_flag is True:
-                tts(f"{name}, average price, {avg_price}")
+            if tts_flag:
+                tts_avg_price = format_tts_price(avg_price)
+                tts(f"{name}, average price, {tts_avg_price}")
         else:
             log("Info", "No pricing found")
     except KeyError:
@@ -271,26 +291,27 @@ def get_prices(name, tts_flag=False):
 
 
 def submit_action():
+    """Submit action to generate link."""
     msg = prefix.get()
     items = [
         {"name": item_one_name, "price": item_one_price},
         {"name": item_two_name, "price": item_two_price}
-        ]
+    ]
 
-    for i, item in enumerate(items):
+    for item in items:
         name = item['name'].get()
         price = item['price'].get()
-        if name != "":
+        if name:
             for i, entry in enumerate(db['name']):
                 if entry == name:
                     hash = "\x12" + db['itemlink'][i] + "\x12"
                     break
 
-            if hash is not None:
-                msg = msg + f" {hash}"
-                if price != "":
-                    msg = msg + f" {price}"
-                msg = msg + ","
+            if hash:
+                msg += f" {hash}"
+                if price:
+                    msg += f" {price}"
+                msg += ","
 
     msg = msg.rstrip(",")
     print(msg)
@@ -302,36 +323,48 @@ def submit_action():
     output.config(state=tk.NORMAL)
     output.insert(0, msg)
     output.config(state=tk.DISABLED)
-    tk.Button(tab1, text="Copy to Clipboard", command=lambda: copy(msg)).grid(row=6, column=2, columnspan=2, pady=5)
-    tk.Button(tab1, text="Write ini", command=lambda: write_ini(msg)).grid(row=7, column=1, rowspan=2, pady=5)
+    tk.Button(tabs["Link Creator"], text="Copy to Clipboard", command=lambda: copy(msg)).grid(row=6, column=2, columnspan=2, pady=5)
+    tk.Button(tabs["Link Creator"], text="Write ini", command=lambda: write_ini(msg)).grid(row=7, column=1, rowspan=2, pady=5)
     log("Info", "Link generated!")
+
+
+def create_labeled_entry(parent, label_text, row, column, width=30, default_text=""):
+    label = ttk.Label(parent, text=label_text)
+    label.grid(row=row, column=column, padx=5, pady=5, sticky="e")
+    entry = ttk.Entry(parent, width=width)
+    entry.grid(row=row, column=column + 1, padx=5, pady=5, sticky="w")
+    entry.insert(0, default_text)
+    return entry
 
 
 # Create the main window
 root = tk.Tk()
 root.title("EQ Link Generator")
+# root.wm_attributes('-toolwindow', 'True')
+root.iconbitmap('EverQuest.ico')
 style = ttk.Style()
-
+root.tk.call("source", "themes/azure.tcl")
+root.tk.call("set_theme", "light")
 notebook = ttk.Notebook(root)
-tab1 = ttk.Frame(notebook)
-tab2 = ttk.Frame(notebook)
-tab3 = ttk.Frame(notebook)
-tab4 = ttk.Frame(notebook)
-notebook.add(tab1, text='Link Creator')
-notebook.add(tab2, text='Inventory Price Checker')
-notebook.add(tab3, text='Item Tracker')
-notebook.add(tab4, text='In-Game Price Check')
-notebook.grid(row=0, column=0)
-style.configure('TNotebook.Tab',
-                padding=[5, 5],
-                borderwidth=3,
-                background='lightgray',
-                foreground='black',
-                font=('Arial', 10, 'bold'),
-                relief='raised',
-                # width=20,
-                height=10)
 
+tabs = {
+    "Link Creator": ttk.Frame(notebook),
+    "Inventory Price Checker": ttk.Frame(notebook),
+    "Item Tracker": ttk.Frame(notebook),
+    "In-Game Price Check": ttk.Frame(notebook)
+}
+
+for tab_name, tab_frame in tabs.items():
+    notebook.add(tab_frame, text=tab_name)
+notebook.grid(row=0, column=0, padx=10, pady=10)
+
+style.configure('TNotebook.Tab',
+                padding=[10, 10],
+                borderwidth=0,
+                background='#f0f0f0',
+                foreground='#333333',
+                font=('Helvetica', 12, 'bold'),
+                relief='flat')
 
 # Menu
 menubar = tk.Menu(root)
@@ -343,105 +376,72 @@ menubar.add_cascade(label="File", menu=file_menu)
 root.config(menu=menubar)
 
 # Prefix
-tk.Label(tab1, text="Prefix:").grid(row=1, column=0, padx=5, pady=5)
-prefix = tk.Entry(tab1, width=30)
-prefix.grid(row=1, column=1, padx=5, pady=5, sticky="w")
-prefix.insert(0, "/1 WTS")
+prefix = create_labeled_entry(tabs["Link Creator"], "Prefix:", 1, 0, default_text="/1 WTS")
 
-# Item 1 Name
-tk.Label(tab1, text="Item:").grid(row=2, column=0, padx=5, pady=5)
-item_one_name = tk.Entry(tab1, width=30)
-item_one_name.grid(row=2, column=1, padx=5, pady=5, sticky="w")
-# Item 1 Price
-tk.Label(tab1, text="Price:").grid(row=2, column=2, padx=5, pady=5)
-item_one_price = tk.Entry(tab1, width=7)
-item_one_price.grid(row=2, column=3, padx=5, pady=5, sticky="w")
-# Item 1 PC
-tk.Button(tab1, text="Price Check", command=lambda: get_prices(item_one_name.get())).grid(row=2, column=4, padx=10)
+# Item 1
+item_one_name = create_labeled_entry(tabs["Link Creator"], "Item:", 2, 0)
+item_one_price = create_labeled_entry(tabs["Link Creator"], "Price:", 2, 2, width=7)
+ttk.Button(tabs["Link Creator"], text="Price Check", command=lambda: get_prices(item_one_name.get())).grid(row=2, column=4, padx=10)
 
-# Item 2 Name
-tk.Label(tab1, text="Item:").grid(row=3, column=0, padx=5, pady=5)
-item_two_name = tk.Entry(tab1, width=30)
-item_two_name.grid(row=3, column=1, padx=5, pady=5, sticky="w")
-# Item 2 Price
-tk.Label(tab1, text="Price:").grid(row=3, column=2, padx=5, pady=5)
-item_two_price = tk.Entry(tab1, width=7)
-item_two_price.grid(row=3, column=3, padx=5, pady=5, sticky="w")
-# Item 2 PC
-tk.Button(tab1, text="Price Check", command=lambda: get_prices(item_two_name.get())).grid(row=3, column=4, padx=10)
+# Item 2
+item_two_name = create_labeled_entry(tabs["Link Creator"], "Item:", 3, 0)
+item_two_price = create_labeled_entry(tabs["Link Creator"], "Price:", 3, 2, width=7)
+ttk.Button(tabs["Link Creator"], text="Price Check", command=lambda: get_prices(item_two_name.get())).grid(row=3, column=4, padx=10)
 
 # Submit
-submit = tk.Button(tab1, text="Submit", command=submit_action)
+submit = ttk.Button(tabs["Link Creator"], text="Submit", command=submit_action)
 submit.grid(row=4, column=0, columnspan=4, pady=5)
 
 # Separator One
-separator_one = ttk.Separator(tab1, orient='horizontal')
+separator_one = ttk.Separator(tabs["Link Creator"], orient='horizontal')
 separator_one.grid(row=5, column=0, columnspan=5, sticky='ew', pady=10)
 
 # Output
-tk.Label(tab1, text="Msg:").grid(row=6, column=0)
-output = tk.Entry(tab1, width=30)
+ttk.Label(tabs["Link Creator"], text="Msg:").grid(row=6, column=0)
+output = ttk.Entry(tabs["Link Creator"], width=30)
 output.grid(row=6, column=1, padx=5, pady=20, sticky="w")
 output.config(state=tk.DISABLED)
-output.config(disabledbackground="#d3d3d3")
 
 # Page Select
-tk.Label(tab1, text="Page:").grid(row=7, column=0, pady=5)
-page = tk.Entry(tab1, width=5)
-page.grid(row=7, column=1, pady=5, sticky="w")
-page.insert(0, "10")
+page = create_labeled_entry(tabs["Link Creator"], "Page:", 7, 0, width=5, default_text="10")
 
 # Button Select
-tk.Label(tab1, text="Button:").grid(row=8, column=0, pady=5)
-btn = tk.Entry(tab1, width=5)
-btn.grid(row=8, column=1, pady=5, sticky="w")
-btn.insert(0, "1")
+btn = create_labeled_entry(tabs["Link Creator"], "Button:", 8, 0, width=5, default_text="1")
 
 # Line Select
-tk.Label(tab1, text="Line:").grid(row=9, column=0, pady=5)
-line = tk.Entry(tab1, width=5)
-line.grid(row=9, column=1, pady=5, sticky="w")
-line.insert(0, "1")
+line = create_labeled_entry(tabs["Link Creator"], "Line:", 9, 0, width=5, default_text="1")
 
 # Select Inv Dump
-select_inv_dump_btn = tk.Button(tab2, text="Open Inventory File", command=select_inv_dump)
+select_inv_dump_btn = ttk.Button(tabs["Inventory Price Checker"], text="Open Inventory File", command=select_inv_dump)
 select_inv_dump_btn.grid(row=12, column=0, columnspan=2, pady=10, padx=10, sticky="w")
 
 # Min Price Select
-tk.Label(tab2, text="Min Plat Price:").grid(row=13, column=0, pady=10)
-min_price_input = tk.Entry(tab2, width=10)
-min_price_input.grid(row=13, column=1, pady=10, sticky="w")
-min_price_input.insert(0, "100")
+min_price_input = create_labeled_entry(tabs["Inventory Price Checker"], "Min Plat Price:", 13, 0, width=10, default_text="100")
 
 # Bag #
-tk.Label(tab2, text="Bag Num (1-12):").grid(row=14, column=0, pady=10)
-bag_num_input = tk.Entry(tab2, width=10)
-bag_num_input.grid(row=14, column=1, pady=10, sticky="w", columnspan=2)
-bag_num_input.insert(0, "All")
+bag_num_input = create_labeled_entry(tabs["Inventory Price Checker"], "Bag Num (1-12):", 14, 0, width=10, default_text="All")
 
 # Get Inv Prices
-inv_prices_btn = tk.Button(tab2, text="Get Prices", command=get_inv_prices)
+inv_prices_btn = ttk.Button(tabs["Inventory Price Checker"], text="Get Prices", command=get_inv_prices)
 inv_prices_btn.grid(row=15, column=0, columnspan=2, pady=10, padx=10, sticky="w")
 
 # Items to Track CSV
-tk.Label(tab3, text="Enter item names to track\n(One item per line)").grid(row=0, column=0, pady=10)
-items_to_track = tk.Text(tab3, wrap=tk.WORD, height=10, width=50)
-items_to_track.grid(row=1, column=0)
-items_to_track_btn = tk.Button(tab3, text="Track Items", command=start_track_items)
+ttk.Label(tabs["Item Tracker"], text="Enter item names to track\n(One item per line)").grid(row=0, column=0, pady=10)
+items_to_track = tk.Text(tabs["Item Tracker"], wrap=tk.WORD, height=10, width=50)
+items_to_track.grid(row=1, column=0, padx=10, pady=10)
+items_to_track_btn = ttk.Button(tabs["Item Tracker"], text="Track Items", command=start_track_items)
 items_to_track_btn.grid(row=2, column=0, pady=10)
 
 # In-game PC
-select_logfile_btn = tk.Button(tab4, text="Open Log File", command=select_logfile)
-select_logfile_btn.grid(row=1, column=0, pady=10, padx=10)
-
+ttk.Label(tabs["In-Game Price Check"], text="Select a log file then type \"pc itemname\" in chat").grid(row=1, column=0, pady=10, padx=10)
+select_logfile_btn = ttk.Button(tabs["In-Game Price Check"], text="Open Log File", command=select_logfile)
+select_logfile_btn.grid(row=2, column=0, pady=10, padx=10)
 
 # Console/Log
 console = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=60, height=15, cursor='xterm')
-console.grid(row=20, column=0, padx=5, pady=15, columnspan=5)
+console.grid(row=20, column=0, padx=10, pady=15, columnspan=5)
 console.insert(tk.END, "Welcome to EQ Link Generator!\n")
-console.config(state=tk.DISABLED)
-console.config(bg="#d3d3d3")
-
+console.config(state=tk.DISABLED, bg="#f0f0f0")
 
 root.after(1, start_thread)
 root.mainloop()
