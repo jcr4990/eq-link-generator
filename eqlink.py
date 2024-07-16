@@ -3,16 +3,16 @@ import tkinter as tk
 from tkinter import ttk
 import pyperclip
 from tkinter import scrolledtext, filedialog
-import urllib.parse
+from urllib.parse import quote
 from datetime import datetime
 import configparser
 import time
 import os
 import gzip
 import shutil
-import pandas as pd
 import threading
 import pyttsx3
+
 
 # Initialize config parser
 config_parser = configparser.ConfigParser(interpolation=None, delimiters=("=", ":"))
@@ -40,6 +40,7 @@ def load_items():
     global db
     log("Info", "Loading item data...")
     extract_gz()
+    import pandas as pd
     db = pd.read_csv('items.txt', delimiter='|', on_bad_lines='skip', low_memory=False)
     log("Info", "Item data loaded!")
 
@@ -63,7 +64,7 @@ def track_items():
         for item in items:
             if not item:
                 continue
-            search_text = urllib.parse.quote(item)
+            search_text = quote(item)
             url = f'https://api.tlp-auctions.com/SalesLog?serverName=Teek&exact=true&searchTerm={search_text}'
             r = requests.get(url)
             results = r.json().get('items', [])
@@ -119,7 +120,7 @@ def get_inv_prices():
         progress_bar['maximum'] = len(items_to_pc)
         progress_bar['value'] = i
         progress_bar.update()
-        search_text = urllib.parse.quote(item)
+        search_text = quote(item)
         r = requests.get(f"https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText={search_text}")
         results = r.json()
         try:
@@ -266,7 +267,7 @@ def get_prices(name, tts_flag=False):
     """Get prices for a given item."""
     r = requests.get("https://api.tlp-auctions.com/KronoPrice?serverName=Teek")
     krono_price = int(r.text.split(".")[0])
-    search_text = urllib.parse.quote(name)
+    search_text = quote(name)
     r = requests.get(f"https://api.tlp-auctions.com/PriceCheck?serverName=Teek&searchText={search_text}")
     results = r.json()
 
@@ -337,11 +338,34 @@ def create_labeled_entry(parent, label_text, row, column, width=30, default_text
     return entry
 
 
+# def read_settings():
+#     global log_file
+#     try:
+#         with open("settings.ini", "r") as f:
+#             config_parser.read_file(f)
+#     except FileNotFoundError:
+#         with open("settings.ini", "w") as f:
+#             config_parser.write(f)
+#         if "Socials" not in config_parser.sections():
+#             config_parser.add_section("Settings")
+#         config_parser["Settings"]["LogFile"] = input("Log File Path:")
+#         config_parser["Settings"]["InvDumpFile"] = input("Inventory Dump File Path:")
+#         with open("settings.ini", "w") as f:
+#             config_parser.write(f)
+
+#     print(config_parser.sections())
+#     log_file = config_parser["Settings"]["LogFile"]
+#     if log_file:
+#         log("Info", f"Selected log file {log_file}")
+#         monitor_log_thread = threading.Thread(target=monitor_log)
+#         monitor_log_thread.daemon = True
+#         monitor_log_thread.start()
+
+
 # Create the main window
 root = tk.Tk()
 root.title("EQ Link Generator")
-# root.wm_attributes('-toolwindow', 'True')
-root.iconbitmap('EverQuest.ico')
+root.iconbitmap('eqlink.ico')
 style = ttk.Style()
 root.tk.call("source", "themes/azure.tcl")
 root.tk.call("set_theme", "light")
@@ -442,6 +466,7 @@ console = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=60, height=15, cur
 console.grid(row=20, column=0, padx=10, pady=15, columnspan=5)
 console.insert(tk.END, "Welcome to EQ Link Generator!\n")
 console.config(state=tk.DISABLED, bg="#f0f0f0")
+
 
 root.after(1, start_thread)
 root.mainloop()
