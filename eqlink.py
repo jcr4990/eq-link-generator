@@ -193,6 +193,7 @@ def select_ini():
 
 def write_ini(msg):
     """Write message to ini file."""
+    submit_action()
     if "ini_file" not in globals():
         select_ini()
     config_parser.read(ini_file)
@@ -325,7 +326,7 @@ def submit_action():
     output.insert(0, msg)
     output.config(state=tk.DISABLED)
     tk.Button(tabs["Link Creator"], text="Copy to Clipboard", command=lambda: copy(msg)).grid(row=6, column=2, columnspan=2, pady=5)
-    tk.Button(tabs["Link Creator"], text="Write ini", command=lambda: write_ini(msg)).grid(row=7, column=1, rowspan=2, pady=5)
+    tk.Button(tabs["Link Creator"], text="Write to ini", command=lambda: write_ini(msg)).grid(row=7, column=1, rowspan=2, pady=5)
     log("Info", "Link generated!")
 
 
