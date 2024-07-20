@@ -76,7 +76,9 @@ def track_items():
                     processed.append(result_id)
                     item_name = result['item']
                     auctioneer = result['auctioneer']
-                    tts(f"{item_name} being sold by {auctioneer}")
+                    trackMsg = f"{item_name} being sold by {auctioneer}"
+                    tts(trackMsg)
+                    log("Info", trackMsg)
             time.sleep(1)
         time.sleep(10)
 
@@ -339,30 +341,6 @@ def create_labeled_entry(parent, label_text, row, column, width=30, default_text
     return entry
 
 
-# def read_settings():
-#     global log_file
-#     try:
-#         with open("settings.ini", "r") as f:
-#             config_parser.read_file(f)
-#     except FileNotFoundError:
-#         with open("settings.ini", "w") as f:
-#             config_parser.write(f)
-#         if "Socials" not in config_parser.sections():
-#             config_parser.add_section("Settings")
-#         config_parser["Settings"]["LogFile"] = input("Log File Path:")
-#         config_parser["Settings"]["InvDumpFile"] = input("Inventory Dump File Path:")
-#         with open("settings.ini", "w") as f:
-#             config_parser.write(f)
-
-#     print(config_parser.sections())
-#     log_file = config_parser["Settings"]["LogFile"]
-#     if log_file:
-#         log("Info", f"Selected log file {log_file}")
-#         monitor_log_thread = threading.Thread(target=monitor_log)
-#         monitor_log_thread.daemon = True
-#         monitor_log_thread.start()
-
-
 # Create the main window
 root = tk.Tk()
 root.title("EQ Link Generator")
@@ -394,7 +372,9 @@ style.configure('TNotebook.Tab',
 # Menu
 menubar = tk.Menu(root)
 file_menu = tk.Menu(menubar, tearoff=0)
-file_menu.add_command(label="Select .ini File", command=select_ini)
+file_menu.add_command(label="Select Charname_server_CLASS ini file", command=select_ini)
+file_menu.add_command(label="Select log file", command=select_logfile)
+file_menu.add_command(label="Select inventory dump file", command=select_inv_dump)
 file_menu.add_separator()
 file_menu.add_command(label="Exit", command=root.quit)
 menubar.add_cascade(label="File", menu=file_menu)
